@@ -1,0 +1,261 @@
+\documentclass{sciposter}
+\usepackage[cmyk,dvipsnames,usenames,svgnames,table]{xcolor} 
+\usepackage{lipsum}
+\usepackage{epsfig}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[english]{babel}
+\usepackage{geometry}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{wrapfig}
+\usepackage{gensymb}
+\usepackage[utf8]{inputenc}
+\usepackage{empheq}
+\usepackage[pdfusetitle]{hyperref}
+\usepackage{fancyvrb}
+\usepackage{xtab}
+
+\usepackage{graphicx,url}
+\usepackage{palatino}
+
+\geometry{
+ landscape,
+ a1paper,
+ left=5mm,
+ right=50mm,
+ top=5mm,
+ bottom=50mm,
+ }
+
+
+
+
+\providecommand{\tightlist}{%
+	\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+%BEGIN LISTINGDEF
+
+\usepackage{listings}
+   
+\usepackage{inconsolata}
+
+\definecolor{background}{HTML}{fcfeff}
+\definecolor{comment}{HTML}{b2979b}
+\definecolor{keywords}{HTML}{255957}
+\definecolor{basicStyle}{HTML}{6C7680}
+\definecolor{variable}{HTML}{001080}
+\definecolor{string}{HTML}{c18100}
+\definecolor{numbers}{HTML}{3f334d}
+
+\lstdefinestyle{lectureNotesListing}{
+	xleftmargin=0.5em, % 2.8 with line numbers
+	breaklines=true,
+	frame=single,
+	framesep=0.6mm,
+	frameround=ffff,
+	framexleftmargin=0.4em, % 2.4 with line numbers | 0.4 without them
+	tabsize=4, %width of tabs
+	aboveskip=0.5em,
+	classoffset=0,
+	sensitive=true,
+	% Colors
+	backgroundcolor=\color{background},
+	basicstyle=\color{basicStyle}\small\ttfamily,
+	keywordstyle=\color{keywords},
+	commentstyle=\color{comment},
+	stringstyle=\color{string},
+	numberstyle=\color{numbers},
+	identifierstyle=\color{variable},
+	showstringspaces=true
+}
+\lstset{style=lectureNotesListing}
+
+%END LISTINGDEF
+
+
+%BEGIN TODO DEFINITION
+\usepackage{todonotes}
+\newcommand{\TODO}[1]{\todo[inline]{\Large TODO:  #1}}
+\newcommand*\widefbox[1]{\fbox{\hspace{2em}#1\hspace{2em}}}
+%END TODO DEFINITION
+
+
+%BEGIN OTHER COMMANDS
+\renewcommand{\t}[1]{\texttt{#1}}
+
+%BEGIN SETUP
+\title{\huge{Promela}}
+
+
+\author{\Large Cheatsheet}
+%END SETUP
+
+% set font
+\renewcommand{\familydefault}{\rmdefault}
+
+
+\begin{document}
+
+
+\maketitle
+
+\begin{multicols}{3}
+
+\section*{Functions and Initialization}
+Promela provides three different abstractions for functions:
+
+\begin{itemize}
+	\item \texttt{init}: Used to initialize a Promela model:
+	\begin{lstlisting}[language=promela]
+init {
+	printf("Hello World\n")
+}
+\end{lstlisting}
+
+
+	\item \texttt{proctype}: A simple process that can take parameters (except arrays)
+\begin{lstlisting}[language=promela]
+proctype myProc(int p){...}
+\end{lstlisting}
+the process above must be run from e.g. an \texttt{init} function with \texttt{run myProc(42);}. The \texttt{run} command start the procedure and returns immediately.
+
+Alternatively we can also start procedures right from the initial system state using the active keyword:
+\begin{lstlisting}[language=promela]
+active proctype myProc(int p){...}
+\end{lstlisting}
+or start \texttt{N} processes of the type \texttt{myProc}.
+\begin{lstlisting}[language=promela]
+active [N] proctype myProc(int p){...}
+\end{lstlisting}
+{\color{red}If we pass multiple variables we seperate them with a semicolon and not a comma!}
+\item \texttt{inline}: A macro that gets copy-pasted. Doesn't do any simulation but just replaces text for a symbolic name with possible parameters:
+\begin{lstlisting}[language=promela]
+inline swap(a, b) {
+	int tmp;
+	tmp = a;
+	a = b;
+	b = tmp;
+}
+\end{lstlisting}
+Note that we do not have a return value and cannot use recursion as well as we do not have a new variable scope as we are literally copy-pasting.
+\end{itemize}
+
+\section*{Synchronization \& Assertions}
+\subsection*{Atomic Block}
+To bundle multiple instructions together and have them execute atomically, we can bundle them as follows:
+
+\begin{lstlisting}[language=promela]
+atomic{
+	printf("hello ");
+	printf("world\n");
+}
+\end{lstlisting}
+
+\subsection*{Guards}
+We can suspend the execution until a condition is true. This is called a guard and is a boolean expression as a statement. The statement thereafter will only be executed if the guard evaluates to true:
+
+\begin{lstlisting}[language=promela]
+time == 42;
+printf("it is time\n");
+\end{lstlisting}
+
+\subsection*{Assertion}
+If we want to model check a program we can add assertions. The model checker will then check all combinations for a violation of the assertions:
+
+\begin{lstlisting}[language=promela]
+proctype finish(){
+	finished == 0; /* wait until finished */
+	assert(n == 100);
+}
+\end{lstlisting}
+
+
+\section*{Control Flow}
+
+\subsection*{If-Statement}
+One of the guard that is true is chosen non-deterministically. One (and only one) option can be \texttt{else} which is taken if no other match. If no conditions matched spin will block until a matching one could be found.
+\begin{lstlisting}[language=promela]
+if
+:: x > 0 -> x--
+:: x < 0 -> x++
+:: x > 100 -> x += 100
+:: else  -> break
+fi
+\end{lstlisting}
+
+
+
+
+\subsection*{Do-Statement}
+This loop construct executes an option non-deterministically until a \texttt{break} or \texttt{goto} is found.
+\begin{lstlisting}[language=promela]
+do
+:: count++
+:: count--
+:: (count == 0) -> break
+od
+\end{lstlisting}
+
+\section*{Declarations}
+\subsection*{Constants}
+Define a constant to be replaced: The two are completely equivalent:
+\begin{lstlisting}[language=promela]
+mtype = { ack, nak, err, next, accept };
+\end{lstlisting}
+\begin{lstlisting}[language=promela]
+#define	ack	5
+#define nak	4
+#define	err	3
+#define next	2
+#define accept	1
+\end{lstlisting}
+
+\subsection*{Structures}
+\begin{lstlisting}[language=promela]
+typedef vector {int x; int y};
+\end{lstlisting}
+
+\subsection*{Variable}
+Can be global or scoped:
+\begin{lstlisting}[language=promela]
+bit counter;
+byte counter2 = 2;
+\end{lstlisting}
+We can choose between \texttt{bit, bool, byte, short, int} as well as arrays which we create like in C: \texttt{int array[2]}
+\subsection*{Built in Primitives}
+\texttt{len(), empty(), nempty(), nfull(), full(), run eval() enabled() pcvalue()} are built in functions. Furthermore we have the standard C operators. 
+
+A special addition is the \texttt{\_pid} variable giving me the process id of a single process an the \texttt{\_nr\_pr} giving me the total number of processes.
+
+
+\section*{Channels}
+
+We can create a channel using
+\begin{lstlisting}[language=promela]
+chan ch = [d] of {mtype, int}
+\end{lstlisting}
+That channel takes two parameters, an mtype and an int. The \texttt{d} is the buffer size. If it is unbuffered (d=0) we can use the channel for synchronization as both threads have to rendevouz to exchange a message. Otherwise we will just place it in the buffer.
+\begin{itemize}
+	\item Receiving: \texttt{ch ? req, n;} receives a \texttt{req} mtype of arbitrary value \texttt{n}.
+	\item Sending: \texttt{ch ! ack, 1;} send an \texttt{ack} mtype with value \texttt{1}.
+\end{itemize} 
+
+
+\section*{Sources}
+
+\begin{enumerate}
+	\item \href{https://infsec.ethz.ch/education/ss2020/fmfp.html}{ETH lecture slides by Prof. Peter Müller}
+	\item \href{https://spinroot.com/spin/Man/mtype.html}{SPIN documentation}
+	\item \href{http://www.cse.chalmers.se/edu/year/2017/course/TDA384_LP1/files/exercises/promela-tutoria1l-shared-mem-conc.pdf}{A tutorial introduction to shared memory concurrency by K.V.S. Prasad (Chalmers)}
+\end{enumerate}
+
+
+
+
+\newpage
+
+
+\end{multicols}
+\end{document}
